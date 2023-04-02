@@ -105,30 +105,30 @@ lemma JBoundsDetermineX(indices: seq<int>, indptr: seq<int>, j: int, x: int)
     }
 }
 
-method getXMethod(indices: seq<int>, indptr: seq<int>, j: int) returns (x: int)
-    requires ValidCSRIndex(indices, indptr)
-    requires 0 <= j < |indices|
+// method getXMethod(indices: seq<int>, indptr: seq<int>, j: int) returns (x: int)
+//     requires ValidCSRIndex(indices, indptr)
+//     requires 0 <= j < |indices|
 
-    ensures 0 <= x <= |indptr| - 2
-    ensures indptr[x] <= j < indptr[x+1]
-    ensures forall x1 :: 0 <= x1 < x ==> j >= indptr[x1+1]
-    ensures forall x1 :: x < x1 <= |indptr|-2 ==> j < indptr[x1]
-    ensures forall x1 :: 0 <= x1 <= |indptr| - 2 ==> ((indptr[x1] <= j < indptr[x1+1]) <==> (x1 == x))
+//     ensures 0 <= x <= |indptr| - 2
+//     ensures indptr[x] <= j < indptr[x+1]
+//     ensures forall x1 :: 0 <= x1 < x ==> j >= indptr[x1+1]
+//     ensures forall x1 :: x < x1 <= |indptr|-2 ==> j < indptr[x1]
+//     ensures forall x1 :: 0 <= x1 <= |indptr| - 2 ==> ((indptr[x1] <= j < indptr[x1+1]) <==> (x1 == x))
 
-    ensures x == getX(indices, indptr, j)
-{
-    x := |indptr| - 2;
-    assert indptr[x+1] == |indices|;
-    while x > 0 && indptr[x] > j 
-        invariant 0 <= x <= |indptr| - 2
-        invariant indptr[x+1] > j
-    {
-        x := x - 1;
-    }
+//     ensures x == getX(indices, indptr, j)
+// {
+//     x := |indptr| - 2;
+//     assert indptr[x+1] == |indices|;
+//     while x > 0 && indptr[x] > j 
+//         invariant 0 <= x <= |indptr| - 2
+//         invariant indptr[x+1] > j
+//     {
+//         x := x - 1;
+//     }
 
-    ghost var x1 := getX(indices, indptr, j);
-    XIsUniqueAndInBounds(indices, indptr, j, x1);
-}
+//     ghost var x1 := getX(indices, indptr, j);
+//     XIsUniqueAndInBounds(indices, indptr, j, x1);
+// }
 
 function getY(indices: seq<int>, indptr: seq<int>, j: int) : int
     requires ValidCSRIndex(indices, indptr)
@@ -648,4 +648,26 @@ class CSRMatrix {
 
         new_matrix := new CSRMatrix(new_data, new_indices, new_indptr, new_n_row, new_n_col);
     }
+}
+
+
+method Main()
+{
+    var indptr := [0, 2, 3, 6];
+    var indices := [0, 2, 2, 0, 1, 2];
+    var data := [1, 2, 3, 4, 5, 6];
+    var matrix := new CSRMatrix(data, indices, indptr, 3, 3);
+    // matrix:
+    // [ 1  0  2  
+    //   0  0  3
+    //   4  5  6 ]
+
+    var new_matrix := matrix.GetSubmatrix(0, 1, 0, 1);
+    var expected := new CSRMatrix([1], [0], [0, 1], 1, 1);
+    // expected
+    // [ 1 ]
+
+    print new_matrix.data, "\n";
+    print new_matrix.indices, "\n";
+    print new_matrix.indptr, "\n";
 }
