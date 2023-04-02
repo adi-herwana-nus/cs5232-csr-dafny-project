@@ -105,30 +105,30 @@ lemma JBoundsDetermineX(indices: seq<int>, indptr: seq<int>, j: int, x: int)
     }
 }
 
-// method getXMethod(indices: seq<int>, indptr: seq<int>, j: int) returns (x: int)
-//     requires ValidCSRIndex(indices, indptr)
-//     requires 0 <= j < |indices|
+method getXMethod(indices: seq<int>, indptr: seq<int>, j: int) returns (x: int)
+    requires ValidCSRIndex(indices, indptr)
+    requires 0 <= j < |indices|
 
-//     ensures 0 <= x <= |indptr| - 2
-//     ensures indptr[x] <= j < indptr[x+1]
-//     ensures forall x1 :: 0 <= x1 < x ==> j >= indptr[x1+1]
-//     ensures forall x1 :: x < x1 <= |indptr|-2 ==> j < indptr[x1]
-//     ensures forall x1 :: 0 <= x1 <= |indptr| - 2 ==> ((indptr[x1] <= j < indptr[x1+1]) <==> (x1 == x))
+    ensures 0 <= x <= |indptr| - 2
+    ensures indptr[x] <= j < indptr[x+1]
+    ensures forall x1 :: 0 <= x1 < x ==> j >= indptr[x1+1]
+    ensures forall x1 :: x < x1 <= |indptr|-2 ==> j < indptr[x1]
+    ensures forall x1 :: 0 <= x1 <= |indptr| - 2 ==> ((indptr[x1] <= j < indptr[x1+1]) <==> (x1 == x))
 
-//     ensures x == getX(indices, indptr, j)
-// {
-//     x := |indptr| - 2;
-//     assert indptr[x+1] == |indices|;
-//     while x > 0 && indptr[x] > j 
-//         invariant 0 <= x <= |indptr| - 2
-//         invariant indptr[x+1] > j
-//     {
-//         x := x - 1;
-//     }
+    ensures x == getX(indices, indptr, j)
+{
+    x := |indptr| - 2;
+    assert indptr[x+1] == |indices|;
+    while x > 0 && indptr[x] > j 
+        invariant 0 <= x <= |indptr| - 2
+        invariant indptr[x+1] > j
+    {
+        x := x - 1;
+    }
 
-//     ghost var x1 := getX(indices, indptr, j);
-//     XIsUniqueAndInBounds(indices, indptr, j, x1);
-// }
+    ghost var x1 := getX(indices, indptr, j);
+    XIsUniqueAndInBounds(indices, indptr, j, x1);
+}
 
 function getY(indices: seq<int>, indptr: seq<int>, j: int) : int
     requires ValidCSRIndex(indices, indptr)
