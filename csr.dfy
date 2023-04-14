@@ -816,7 +816,8 @@ class CSRMatrix {
     }
 
 
-
+// verifying function csr_todense, which takes in a CSR matrix and a normal matrix, outputs the sum of two matrice
+// source code: scipy/scipy/sparse/sparsetools/csr.h line 270
     method CsrToDense(m: Matrix) returns (ret: Matrix)
     requires Valid()
     requires isMatrix(m)
