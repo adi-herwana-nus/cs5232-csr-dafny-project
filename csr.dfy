@@ -1,3 +1,5 @@
+include "matrix.dfy"
+
 predicate ValidCSRIndex(indices: seq<int>, indptr: seq<int>) 
 {
     |indptr| >= 1 &&
@@ -747,7 +749,118 @@ class CSRMatrix {
             assert JExists(value_matrix.indices, value_matrix.indptr, 0, 0);
         }
     }
+
+
+
+    method CopyRow(from: seq<int>) returns (ret: array<int>)
+    requires |from| >= 0
+
+    ensures ret.Length == |from|
+    ensures ret[..] == from
+    {
+        ret := new int[|from|];
+        var i := 0;
+        while i < |from|
+        invariant 0 <= i <= |from|
+        invariant forall ii :: 0 <= ii < i ==> ret[ii] == from[ii]
+        {
+            ret[i] := from[i];
+            i := i + 1;
+        }
+        assert ret[..] == from;
+    }
+
+
+    method AddVals(from: seq<int>, start: int) returns (ret: array<int>)
+    requires |from| == ncols
+    requires |from| >= 0
+    requires 0 <= start < nrows
+    requires Valid()
+
+    ensures ret.Length == |from|
+
+    // main target of verification: ensures that the output row is the sum of the matrix rol and CSR row by making sures that
+    // 1. all data with column index that is not in CSR row indices remains the same as the matrix
+    // 2. all data with column index that is in CSR row indices equals to the sum of the matrix data and CSR data
+    ensures forall jj :: 0 <= jj < |from| && 
+            ( forall ii :: indptr[start] <= ii < indptr[start+1] ==> jj != indices[ii]) ==> ret[jj] == from[jj]
+    ensures forall jj :: indptr[start] <= jj < indptr[start+1] ==> ret[indices[jj]] == from[indices[jj]] + data[jj]
+    {
+        
+        ret := new int[|from|];
+        var i := 0;
+        while i < |from|
+        invariant 0 <= i <= |from|
+        invariant forall ii :: 0 <= ii < i ==> ret[ii] == from[ii]
+        {
+            ret[i] := from[i];
+            i := i + 1;
+        }
+        assert ret[..] == from;
+        assert forall ii :: 0 <= ii < ret.Length ==> ret[ii] == from[ii];
+        assert ret.Length == |from| == ncols;
+
+
+        var j := indptr[start];
+        while j < indptr[start+1]
+        invariant indptr[start] <= j <= indptr[start+1]
+        invariant forall jj :: 0 <= jj < |from| && 
+                                    ( forall ii :: indptr[start] <= ii < indptr[start+1] ==> jj != indices[ii]) ==> ret[jj] == from[jj]
+        invariant forall jj :: j <= jj < indptr[start+1] ==> ret[indices[jj]] == from[indices[jj]]
+        invariant forall jj :: indptr[start] <= jj < j ==> ret[indices[jj]] == from[indices[jj]] + data[jj]
+        {
+            ret[indices[j]] :=  from[indices[j]] + data[j];
+            assert ret[indices[j]] ==  from[indices[j]] + data[j];
+            j := j + 1;
+        }
+    }
+
+
+
+    method CsrToDense(m: Matrix) returns (ret: Matrix)
+    requires Valid()
+    requires isMatrix(m)
+
+    // requires the shape of two input matrices match
+    requires nrows >= 0 && ncols >= 0
+    requires m.rows == nrows && m.columns == ncols
+    requires forall i :: 0 <= i < nrows ==> 0 <= indptr[i+1] - indptr[i] <= ncols
+
+    ensures isMatrix(ret)
+    ensures Valid()
+    ensures ret.rows == m.rows && ret.columns == m.columns
+    ensures forall ix :: 0 <= ix < nrows ==> (
+                forall jj :: indptr[ix] <= jj < indptr[ix+1] ==> ret.vals[ix][indices[jj]] == m.vals[ix][indices[jj]] + data[jj] &&
+                forall jj :: 0 <= jj < ncols && 
+                ( forall ii :: indptr[ix] <= ii < indptr[ix+1] ==> jj != indices[ii]) ==> ret.vals[ix][jj] == m.vals[ix][jj]
+            )
+    {
+        var i := 0;
+        ghost var originalM := m;
+        var ret_data := new seq<int>[nrows];
+        
+        while i < nrows 
+        invariant 0 <= i <= nrows
+        invariant m.vals == originalM.vals
+        invariant ret_data.Length == nrows
+        invariant forall ii :: 0 <= ii < i ==> |ret_data[ii]| == ncols
+        invariant forall ix :: 0 <= ix < i ==> (
+            forall jj :: indptr[ix] <= jj < indptr[ix+1] ==> ret_data[ix][indices[jj]] == m.vals[ix][indices[jj]] + data[jj] &&
+            forall jj :: 0 <= jj < ncols && 
+            ( forall ii :: indptr[ix] <= ii < indptr[ix+1] ==> jj != indices[ii]) ==> ret_data[ix][jj] == m.vals[ix][jj]
+        )
+        {
+            var row := AddVals(m.vals[i], i);
+            assert row.Length == ncols;
+            ret_data[i] := row[..];
+            assert |ret_data[i]| == ncols;
+            i := i+1;
+        }
+        var ret_seq_data := ret_data[..];
+        ret := Matrice(ret_seq_data, nrows, ncols);
+    }
 }
+
 
 
 method Main()
@@ -765,6 +878,8 @@ method Main()
     var expected := new CSRMatrix([1], [0], [0, 1], 1, 1);
     // expected
     // [ 1 ]
+    assert |expected.data| == 1;
+    assert expected.data[0] == 1;
 
     print new_matrix.data, "\n";
     print new_matrix.indices, "\n";
@@ -782,4 +897,20 @@ method Main()
     assert indices[indptr[2]..indptr[3]] == [0, 1, 2];
     assert 1 in matrix.indices[matrix.indptr[2]..matrix.indptr[3]];
     assert value3 == 5;
+
+
+    var m_data := [[1, 0, 0], [0, 0, 0], [0, 0, 0]];
+    var m_rows := 3;
+    var m_cols := 3;
+    var m := Matrice(m_data, m_rows, m_cols);
+
+    var m_sum := matrix.CsrToDense(m);
+    assert |m_sum.vals| == 3;
+    assert |m_sum.vals[0]| == 3;
+    assert m_sum.vals[0][0] == 2;
+    assert m_sum.vals[0][1] == 0;
+    // expected
+    // 2 0 2
+    // 0 0 3
+    // 4 5 6
 }
