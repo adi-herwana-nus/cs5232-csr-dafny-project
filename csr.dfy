@@ -313,25 +313,18 @@ lemma AddingRowsPreservesJExists(indices1: seq<int>, indptr1: seq<int>, indices2
     requires Canonical(indices2, indptr2)
     requires IsHeadMatrix(indices1, indptr1, indices2, indptr2)
 
-    ensures forall x :: 0 <= x < |indptr1| - 1 ==> (
-        forall y :: 0 <= y < ncols ==> (
-            JExists(indices1, indptr1, x, y) <==> JExists(indices2, indptr2, x, y)
-        )
+    ensures forall x, y :: 0 <= x < |indptr1| - 1 && 0 <= y < ncols ==> (
+        JExists(indices1, indptr1, x, y) <==> JExists(indices2, indptr2, x, y)
     )
 {
-    forall x | 0 <= x < |indptr1| - 1 
-        ensures forall y :: 0 <= y < ncols ==> (
-            JExists(indices1, indptr1, x, y) <==> JExists(indices2, indptr2, x, y)
-        )
+    forall x, y | 0 <= x < |indptr1| - 1 && 0 <= y < ncols
+        ensures JExists(indices1, indptr1, x, y) <==> JExists(indices2, indptr2, x, y)
     {
-        forall y | 0 <= y < ncols 
-            ensures JExists(indices1, indptr1, x, y) <==> JExists(indices2, indptr2, x, y)
-        {
-            JExistenceConditionForGivenXY(indices1, indptr1, ncols, x, y);
-            JExistenceConditionForGivenXY(indices2, indptr2, ncols, x, y);
-        }
+        JExistenceConditionForGivenXY(indices1, indptr1, ncols, x, y);
+        JExistenceConditionForGivenXY(indices2, indptr2, ncols, x, y);
     }
 }
+
 lemma AddingRowsPreservesExistingData(data1: seq<int>, indices1: seq<int>, indptr1: seq<int>, data2: seq<int>, indices2: seq<int>, indptr2: seq<int>, ncols: int)
     requires ValidCSRIndex(indices1, indptr1)
     requires Canonical(indices1, indptr1)
@@ -341,11 +334,9 @@ lemma AddingRowsPreservesExistingData(data1: seq<int>, indices1: seq<int>, indpt
     requires |data2| == |indices2|
     requires IsHeadMatrixWithData(data1, indices1, indptr1, data2, indices2, indptr2)
 
-    ensures forall x :: 0 <= x < |indptr1| - 1 ==> (
-        forall y :: 0 <= y < ncols ==> (
-            (JExists(indices1, indptr1, x, y) ==>
-                DataAt(data1, indices1, indptr1, x, y) == DataAt(data2, indices2, indptr2, x, y))
-        )
+    ensures forall x, y :: 0 <= x < |indptr1| - 1 && 0 <= y < ncols ==> (
+        (JExists(indices1, indptr1, x, y) ==>
+            DataAt(data1, indices1, indptr1, x, y) == DataAt(data2, indices2, indptr2, x, y))
     )
 {
     AddingRowsPreservesJExists(indices1, indptr1, indices2, indptr2, ncols);
@@ -353,23 +344,18 @@ lemma AddingRowsPreservesExistingData(data1: seq<int>, indices1: seq<int>, indpt
         ensures (JExists(indices1, indptr1, x, y) ==>
                 DataAt(data1, indices1, indptr1, x, y) == DataAt(data2, indices2, indptr2, x, y))
     {
-        forall y | 0 <= y < ncols 
-            ensures (JExists(indices1, indptr1, x, y) ==>
-                DataAt(data1, indices1, indptr1, x, y) == DataAt(data2, indices2, indptr2, x, y))
+        if JExists(indices1, indptr1, x, y) 
         {
-            if JExists(indices1, indptr1, x, y) 
+            forall j | j in getJs(indices1, indptr1, x, y)
+                ensures DataAt(data1, indices1, indptr1, x, y) == DataAt(data2, indices2, indptr2, x, y)
             {
-                forall j | j in getJs(indices1, indptr1, x, y)
-                    ensures DataAt(data1, indices1, indptr1, x, y) == DataAt(data2, indices2, indptr2, x, y)
-                {
-                    AddingRowsPreservesExistingPositions(indices1, indptr1, indices2, indptr2);
-                    DataUniqueInCanonicalMatrix(data1, indices1, indptr1, x, y, j);
-                    assert DataAt(data1, indices1, indptr1, x, y) == {data1[j]};
-                    assert getX(indices2, indptr2, j) == x;
-                    assert getY(indices2, indptr2, j) == y;
-                    JUniqueInCanonicalMatrix(indices2, indptr2, x, y, j);
-                    assert DataAt(data2, indices2, indptr2, x, y) == {data2[j]};
-                }
+                AddingRowsPreservesExistingPositions(indices1, indptr1, indices2, indptr2);
+                DataUniqueInCanonicalMatrix(data1, indices1, indptr1, x, y, j);
+                assert DataAt(data1, indices1, indptr1, x, y) == {data1[j]};
+                assert getX(indices2, indptr2, j) == x;
+                assert getY(indices2, indptr2, j) == y;
+                JUniqueInCanonicalMatrix(indices2, indptr2, x, y, j);
+                assert DataAt(data2, indices2, indptr2, x, y) == {data2[j]};
             }
         }
     }
@@ -412,9 +398,8 @@ class CSRMatrix {
         ValidCSRIndex(this.indices, this.indptr) &&
         Canonical(this.indices, this.indptr) &&
         RowColValid() &&
-        forall x :: 0 <= x < |indptr| - 1 ==> 
-            forall y :: 0 <= y < ncols ==>
-                (JExists(indices, indptr, x, y) <==> y in indices[indptr[x]..indptr[x+1]])
+        forall x, y :: 0 <= x < |indptr| - 1 && 0 <= y < ncols ==>
+            (JExists(indices, indptr, x, y) <==> y in indices[indptr[x]..indptr[x+1]])
     }
 
     predicate RowColValid()
