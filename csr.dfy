@@ -823,9 +823,7 @@ class CSRMatrix {
     requires isMatrix(m)
 
     // requires the shape of two input matrices match
-    requires nrows >= 0 && ncols >= 0
     requires m.rows == nrows && m.columns == ncols
-    requires forall i :: 0 <= i < nrows ==> 0 <= indptr[i+1] - indptr[i] <= ncols
 
     ensures isMatrix(ret)
     ensures Valid()
