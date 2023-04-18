@@ -1,3 +1,7 @@
+// Implementation of _get_intXint (scipy/sparse/_compressed.py, line 654),
+// which directly calls get_csr_submatrix (verified in GetSubmatrix.dfy)
+// This is the method called when the Python code uses M[x, y] to get the value at row x, column y.
+
 include "csr.dfy"
 include "GetSubmatrix.dfy"
 
@@ -102,9 +106,6 @@ lemma CanonicalIndicesLimited(indices: seq<int>, indptr: seq<int>, ncols: int)
     }
 }
 
-// Implementation of _get_intXint (scipy/sparse/_compressed.py, line 654),
-// which directly calls get_csr_submatrix (verified in GetSubmatrix.dfy)
-// This is the method called when the Python code uses M[x, y] to get the value at row x, column y.
 method GetIntXInt(matrix: CSRMatrix, row: int, col: int) returns (value: int)
     requires 0 <= row < matrix.nrows
     requires 0 <= col < matrix.ncols
