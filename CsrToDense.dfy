@@ -25,7 +25,7 @@ method CsrToDense(m: Matrix, csr: CSRMatrix) returns (ret: Matrix)
     {
         var i := 0;
         ghost var originalM := m;
-        var ret_data := new seq<int>[csr.nrows](i => []);
+        var ret_data := new seq<int>[csr.nrows];
         
         while i < csr.nrows 
         invariant 0 <= i <= csr.nrows
@@ -66,7 +66,7 @@ method AddVals(from: seq<int>, start: int, csr: CSRMatrix) returns (ret_row: arr
     ensures forall jj :: csr.indptr[start] <= jj < csr.indptr[start+1] ==> ret_row[csr.indices[jj]] == from[csr.indices[jj]] + csr.data[jj]
     {
         
-        ret_row := new int[|from|](i => 0);
+        ret_row := new int[|from|];
         var i := 0;
         while i < |from|
         invariant 0 <= i <= |from|
