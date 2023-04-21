@@ -14,7 +14,7 @@ predicate GetSubmatrixTarget(old_matrix: CSRMatrix, ir0: int, ir1: int, ic0: int
     requires old_matrix.Valid()
     requires |new_data| == |new_indices|
     requires ValidCSRIndex(new_indices, new_indptr)
-    requires Canonical(new_indices, new_indptr)
+    requires Unique(new_indices, new_indptr)
 {
     forall x, y :: 0 <= x < ir1-ir0 && 0 <= y < ic1-ic0 ==> (
         (JExists(new_indices, new_indptr, x, y) <==> JExists(old_matrix.indices, old_matrix.indptr, x+ir0, y+ic0)) &&
@@ -59,8 +59,8 @@ method GetSubmatrix(old_matrix: CSRMatrix, ir0: int, ir1: int, ic0: int, ic1: in
         invariant ValidCSRIndex(new_indices, new_indptr)
 
         invariant forall i1 :: 0 <= i1 < i-1 ==>
-            forall j1, k1 :: new_indptr[i1] <= j1 < k1 < new_indptr[i1+1] ==> new_indices[j1] < new_indices[k1] 
-        invariant Canonical(new_indices, new_indptr)
+            forall j1, k1 :: new_indptr[i1] <= j1 < k1 < new_indptr[i1+1] ==> new_indices[j1] != new_indices[k1] 
+        invariant Unique(new_indices, new_indptr)
 
         invariant forall j1 :: 0 <= j1 < |new_indices| ==> 0 <= new_indices[j1] < new_n_col
 
@@ -77,7 +77,7 @@ method GetSubmatrix(old_matrix: CSRMatrix, ir0: int, ir1: int, ic0: int, ic1: in
             XIsUniqueAndInBounds(old_matrix.indices, old_matrix.indptr, jj, getX(old_matrix.indices, old_matrix.indptr, jj));
         }
 
-        assert forall j1, k1 :: row_start <= j1 < k1 < row_end ==> old_matrix.indices[j1] < old_matrix.indices[k1];
+        assert forall j1, k1 :: row_start <= j1 < k1 < row_end ==> old_matrix.indices[j1] != old_matrix.indices[k1];
         ghost var current_row_jjs: seq<int> := [];
         
         var jj := row_start;
@@ -91,7 +91,7 @@ method GetSubmatrix(old_matrix: CSRMatrix, ir0: int, ir1: int, ic0: int, ic1: in
             invariant ValidCSRIndex(new_indices, new_indptr + [kk])
 
             invariant forall i1 :: 0 <= i1 < |new_indptr|-1 ==>
-                forall j1, k1 :: new_indptr[i1] <= j1 < k1 < new_indptr[i1+1] ==> new_indices[j1] < new_indices[k1] 
+                forall j1, k1 :: new_indptr[i1] <= j1 < k1 < new_indptr[i1+1] ==> new_indices[j1] != new_indices[k1] 
 
             invariant forall j1 :: 0 <= j1 < |new_indices| ==> 0 <= new_indices[j1] < new_n_col
 
@@ -100,9 +100,8 @@ method GetSubmatrix(old_matrix: CSRMatrix, ir0: int, ir1: int, ic0: int, ic1: in
             invariant forall j1 :: 0 <= j1 < |current_row_jjs| ==> new_indices[new_indptr[|new_indptr|-1] + j1] == old_matrix.indices[current_row_jjs[j1]] - ic0
             invariant forall j1, k1 :: 0 <= j1 < k1 < |current_row_jjs| ==> current_row_jjs[j1] < current_row_jjs[k1]
 
-            invariant forall i1, j1, k1 :: 0 <= i1 < |new_indptr|-1 && new_indptr[i1] <= j1 < k1 < new_indptr[i1+1] ==> new_indices[j1] < new_indices[k1]
-            invariant forall j1, k1 :: new_indptr[|new_indptr|-1] <= j1 < k1 < kk ==> new_indices[j1] < new_indices[k1] 
-            invariant Canonical(new_indices, new_indptr + [kk])
+            invariant forall j1, k1 :: new_indptr[|new_indptr|-1] <= j1 < k1 < kk ==> new_indices[j1] != new_indices[k1] 
+            invariant Unique(new_indices, new_indptr + [kk])
 
             invariant forall j1 :: 0 <= j1 < |current_row_jjs| ==> getX(old_matrix.indices, old_matrix.indptr, current_row_jjs[j1]) == i + ir0
 
@@ -121,16 +120,16 @@ method GetSubmatrix(old_matrix: CSRMatrix, ir0: int, ir1: int, ic0: int, ic1: in
 
             jj := jj + 1;
 
-            // This proves that if the old matrix is canonical, the new matrix is also canonical
+            // This proves that if the old matrix is Unique, the new matrix is also Unique
             forall j1, k1 | new_indptr[|new_indptr|-1] <= j1 < k1 < kk
-                ensures new_indices[j1] < new_indices[k1]
+                ensures new_indices[j1] != new_indices[k1]
             {
                 var j2, k2 := j1 - new_indptr[|new_indptr|-1], k1 - new_indptr[|new_indptr|-1];
                 assert current_row_jjs[j2] < current_row_jjs[k2];
-                assert old_matrix.indices[current_row_jjs[j2]] - ic0 < old_matrix.indices[current_row_jjs[k2]] - ic0;
+                assert old_matrix.indices[current_row_jjs[j2]] - ic0 != old_matrix.indices[current_row_jjs[k2]] - ic0;
                 assert old_matrix.indices[current_row_jjs[j2]] - ic0 == new_indices[new_indptr[|new_indptr|-1] + j2];
                 assert old_matrix.indices[current_row_jjs[k2]] - ic0 == new_indices[new_indptr[|new_indptr|-1] + k2];
-                assert new_indices[j1] < new_indices[k1];
+                assert new_indices[j1] != new_indices[k1];
             }
         }
         new_indptr := new_indptr + [kk];

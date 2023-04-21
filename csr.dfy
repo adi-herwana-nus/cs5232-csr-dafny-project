@@ -9,6 +9,12 @@ predicate ValidCSRIndex(indices: seq<int>, indptr: seq<int>)
     (forall i, j :: 0 <= i < j < |indptr| ==> indptr[i] <= indptr[j])
 }
 
+predicate Unique(indices: seq<int>, indptr: seq<int>)
+    requires ValidCSRIndex(indices, indptr)
+{
+    forall row :: 0 <= row < |indptr|-1 ==> forall i,j :: indptr[row] <= i < j < indptr[row+1] ==> indices[i] != indices[j]
+}
+
 predicate Canonical(indices: seq<int>, indptr: seq<int>)
     requires ValidCSRIndex(indices, indptr)
 {
@@ -105,14 +111,13 @@ function getY(indices: seq<int>, indptr: seq<int>, j: int) : int
 
 function getJs(indices: seq<int>, indptr: seq<int>, x: int, y: int) : set<int>
     requires ValidCSRIndex(indices, indptr)
-    requires Canonical(indices, indptr)
 {
     set j | 0 <= j < |indices| && getX(indices, indptr, j) == x && getY(indices, indptr, j) == y
 }
 
 predicate JExists(indices: seq<int>, indptr: seq<int>, x: int, y: int)
     requires ValidCSRIndex(indices, indptr)
-    requires Canonical(indices, indptr)
+    requires Unique(indices, indptr)
 {
     |getJs(indices, indptr, x, y)| == 1
 }
@@ -120,14 +125,14 @@ predicate JExists(indices: seq<int>, indptr: seq<int>, x: int, y: int)
 function DataAt(data: seq<int>, indices: seq<int>, indptr: seq<int>, x: int, y: int): set<int>
     requires |data| == |indices|
     requires ValidCSRIndex(indices, indptr)
-    requires Canonical(indices, indptr)
+    requires Unique(indices, indptr)
 {
     set j | j in getJs(indices, indptr, x, y) :: data[j]
 }
 
 lemma XYUniqueInCanonicalMatrix(indices: seq<int>, indptr: seq<int>, j1: int, j2: int)
     requires ValidCSRIndex(indices, indptr)
-    requires Canonical(indices, indptr)
+    requires Unique(indices, indptr)
     requires 0 <= j1 < |indices|
     requires 0 <= j2 < |indices|
     requires getX(indices, indptr, j1) == getX(indices, indptr, j2)
@@ -145,11 +150,11 @@ lemma XYUniqueInCanonicalMatrix(indices: seq<int>, indptr: seq<int>, j1: int, j2
         assert indptr[x] <= j2 < indptr[x+1];
         if j1 < j2
         {
-            assert indptr[x] <= j1 < j2 < indptr[x+1] ==> indices[j1] < indices[j2];
+            assert indptr[x] <= j1 < j2 < indptr[x+1] ==> indices[j1] != indices[j2];
         }
         else
         {
-            assert indptr[x] <= j2 < j1 < indptr[x+1] ==> indices[j2] < indices[j1];
+            assert indptr[x] <= j2 < j1 < indptr[x+1] ==> indices[j2] != indices[j1];
         }
         assert getY(indices, indptr, j1) == indices[j1] != indices[j2] == getY(indices, indptr, j2);
         assert false;
@@ -158,7 +163,7 @@ lemma XYUniqueInCanonicalMatrix(indices: seq<int>, indptr: seq<int>, j1: int, j2
 
 lemma JUniqueInCanonicalMatrix(indices: seq<int>, indptr: seq<int>, x: int, y: int, j: int)
     requires ValidCSRIndex(indices, indptr)
-    requires Canonical(indices, indptr)
+    requires Unique(indices, indptr)
     requires 0 <= j < |indices|
     requires getX(indices, indptr, j) == x
     requires getY(indices, indptr, j) == y
@@ -179,7 +184,7 @@ lemma JUniqueInCanonicalMatrix(indices: seq<int>, indptr: seq<int>, x: int, y: i
 
 lemma DataUniqueInCanonicalMatrix(data: seq<int>, indices: seq<int>, indptr: seq<int>, x: int, y: int, j: int)
     requires ValidCSRIndex(indices, indptr)
-    requires Canonical(indices, indptr)
+    requires Unique(indices, indptr)
     requires 0 <= j < |indices|
     requires |data| == |indices|
     requires getX(indices, indptr, j) == x
@@ -192,7 +197,7 @@ lemma DataUniqueInCanonicalMatrix(data: seq<int>, indices: seq<int>, indptr: seq
 
 lemma JExistenceConditionForGivenXY(indices: seq<int>, indptr: seq<int>, ncols: int, x: int, y: int)
     requires ValidCSRIndex(indices, indptr)
-    requires Canonical(indices, indptr)
+    requires Unique(indices, indptr)
     requires 0 <= x < |indptr| - 1
     ensures JExists(indices, indptr, x, y) <==> y in indices[indptr[x]..indptr[x+1]];
 {
@@ -220,7 +225,7 @@ lemma JExistenceConditionForGivenXY(indices: seq<int>, indptr: seq<int>, ncols: 
 
 lemma JExistenceConditionForGivenX(indices: seq<int>, indptr: seq<int>, ncols: int, x: int)
     requires ValidCSRIndex(indices, indptr)
-    requires Canonical(indices, indptr)
+    requires Unique(indices, indptr)
     requires 0 <= x < |indptr| - 1
     ensures forall y :: 0 <= y < ncols ==>
         (JExists(indices, indptr, x, y) <==> y in indices[indptr[x]..indptr[x+1]])
@@ -253,7 +258,7 @@ lemma JExistenceConditionForGivenX(indices: seq<int>, indptr: seq<int>, ncols: i
 
 lemma JExistenceCondition(indices: seq<int>, indptr: seq<int>, ncols: int)
     requires ValidCSRIndex(indices, indptr)
-    requires Canonical(indices, indptr)
+    requires Unique(indices, indptr)
     ensures forall x :: 0 <= x < |indptr| - 1 ==> 
         forall y :: 0 <= y < ncols ==>
             (JExists(indices, indptr, x, y) <==> y in indices[indptr[x]..indptr[x+1]])
@@ -307,9 +312,9 @@ lemma AddingRowsPreservesExistingPositions(indices1: seq<int>, indptr1: seq<int>
 
 lemma AddingRowsPreservesJExists(indices1: seq<int>, indptr1: seq<int>, indices2: seq<int>, indptr2: seq<int>, ncols: int)
     requires ValidCSRIndex(indices1, indptr1)
-    requires Canonical(indices1, indptr1)
+    requires Unique(indices1, indptr1)
     requires ValidCSRIndex(indices2, indptr2)
-    requires Canonical(indices2, indptr2)
+    requires Unique(indices2, indptr2)
     requires IsHeadMatrix(indices1, indptr1, indices2, indptr2)
 
     ensures forall x, y :: 0 <= x < |indptr1| - 1 && 0 <= y < ncols ==> (
@@ -326,10 +331,10 @@ lemma AddingRowsPreservesJExists(indices1: seq<int>, indptr1: seq<int>, indices2
 
 lemma AddingRowsPreservesExistingData(data1: seq<int>, indices1: seq<int>, indptr1: seq<int>, data2: seq<int>, indices2: seq<int>, indptr2: seq<int>, ncols: int)
     requires ValidCSRIndex(indices1, indptr1)
-    requires Canonical(indices1, indptr1)
+    requires Unique(indices1, indptr1)
     requires |data1| == |indices1|
     requires ValidCSRIndex(indices2, indptr2)
-    requires Canonical(indices2, indptr2)
+    requires Unique(indices2, indptr2)
     requires |data2| == |indices2|
     requires IsHeadMatrixWithData(data1, indices1, indptr1, data2, indices2, indptr2)
 
@@ -370,7 +375,7 @@ class CSRMatrix {
     constructor (data: seq<int>, indices: seq<int>, indptr: seq<int>, nrows: int, ncols: int) 
         requires |data| == |indices|
         requires ValidCSRIndex(indices, indptr)
-        requires Canonical(indices, indptr)
+        requires Unique(indices, indptr)
         requires |indptr| == nrows + 1
         requires 0 <= ncols
         requires forall j :: 0 <= j < |indices| ==> indices[j] < ncols
@@ -395,7 +400,7 @@ class CSRMatrix {
     {
         |data| == |indices| &&
         ValidCSRIndex(this.indices, this.indptr) &&
-        Canonical(this.indices, this.indptr) &&
+        Unique(this.indices, this.indptr) &&
         RowColValid() &&
         forall x, y :: 0 <= x < |indptr| - 1 && 0 <= y < ncols ==>
             (JExists(indices, indptr, x, y) <==> y in indices[indptr[x]..indptr[x+1]])
@@ -406,5 +411,4 @@ class CSRMatrix {
     {
         |indptr| == nrows + 1 && 0 <= ncols && forall j :: 0 <= j < |indices| ==> indices[j] < ncols
     }
-    
 }
