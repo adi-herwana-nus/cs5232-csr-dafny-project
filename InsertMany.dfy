@@ -296,13 +296,6 @@ method InsertMany(matrix: CSRMatrix, i: seq<int>, j: seq<int>, x: seq<int>)
         if prev < ii
         {
             assert new_indices == prev_indices + matrix.indices[start..stop] + added_indices;
-            
-            // assert new_indptr[prev+1] == |prev_indices| + matrix.indptr[prev+1] - matrix.indptr[prev];
-            // ShiftedSubsequenceEquality(matrix.indices, matrix.indptr[prev], matrix.indptr[prev+1], new_indices, |prev_indices| - matrix.indptr[prev]);
-            // assert new_indices[|prev_indices|..new_indptr[prev+1]] == matrix.indices[matrix.indptr[prev]..matrix.indptr[prev+1]];
-            // var old_slice := new_indices[|prev_indices|..new_indptr[prev+1]];
-            // assert new_indptr_sep[prev] == |prev_indices|;
-            // assert new_indices[new_indptr_sep[prev]..new_indptr[prev+1]] == old_slice;
 
             forall x, y | prev <= x < ii && 0 <= y < matrix.ncols
                 ensures y in new_indices[new_indptr_sep[x]..new_indptr[x+1]] <==> y in matrix.indices[matrix.indptr[x]..matrix.indptr[x+1]]
@@ -318,12 +311,7 @@ method InsertMany(matrix: CSRMatrix, i: seq<int>, j: seq<int>, x: seq<int>)
                     assert new_indptr_sep[prev] == |prev_indices|;
                     assert temp_slice == old_slice;
                 }
-                // assert x !in ui;
-                // SeqSetEqualityImpliesEquivalence(ui, i, x);
-                // assert x !in i;
-                // assert !XYInInput(i, j, x, y);
-                // assert new_indptr_sep[x] == new_indptr[x];
-                // assert y !in new_indices[new_indptr[x]..new_indptr_sep[x]];
+
                 if prev < x < ii
                 {
                     ShiftedSubsequenceEquality(matrix.indices, matrix.indptr[x], matrix.indptr[x+1], new_indices, |prev_indices| - matrix.indptr[prev]);

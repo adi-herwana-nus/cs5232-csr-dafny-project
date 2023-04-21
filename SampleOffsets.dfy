@@ -15,7 +15,7 @@ predicate SampleOffsetsTarget(matrix: CSRMatrix, Bi: seq<int>, Bj: seq<int>, Bp:
     (forall n :: 0 <= n < |Bp| ==> 0 <= Bp[n] < |matrix.indices| || Bp[n] == -1) &&
     forall n :: 0 <= n < |Bp| ==>
         (if JExists(matrix.indices, matrix.indptr, positiveIndex(Bi[n], matrix.nrows), positiveIndex(Bj[n], matrix.ncols))
-            then Bp[n] >= 0
+            then 0 <= Bp[n] < |matrix.indices|
                 && getX(matrix.indices, matrix.indptr, Bp[n]) == positiveIndex(Bi[n], matrix.nrows)
                 && getY(matrix.indices, matrix.indptr, Bp[n]) == positiveIndex(Bj[n], matrix.ncols)
             else Bp[n] == -1)
@@ -57,7 +57,6 @@ method SampleOffsets(matrix: CSRMatrix, Bi: seq<int>, Bj: seq<int>) returns (Bp:
             invariant row_start <= jj <= row_end
             invariant offset == -1 || row_start <= offset < jj
             invariant offset >= 0 ==> getX(matrix.indices, matrix.indptr, offset) == i && getY(matrix.indices, matrix.indptr, offset) == j
-            invariant offset < 0 ==> offset == -1
             invariant offset == -1 ==> j !in matrix.indices[row_start..jj]
         {
             if (matrix.indices[jj] == j)
@@ -79,12 +78,9 @@ method SampleOffsets(matrix: CSRMatrix, Bi: seq<int>, Bj: seq<int>) returns (Bp:
         {
             JUniqueInCanonicalMatrix(matrix.indices, matrix.indptr, i, j, offset);
             assert JExists(matrix.indices, matrix.indptr, i, j);
+            assert j in matrix.indices[row_start..jj];
         }
-        if offset == -1
-        {
-            JExistenceConditionForGivenX(matrix.indices, matrix.indptr, matrix.ncols, i);
-            assert !JExists(matrix.indices, matrix.indptr, i, j);
-        }
+        assert offset == -1 ==> j !in matrix.indices[row_start..jj];
         Bp := Bp + [offset];
         n := n + 1;
     }
