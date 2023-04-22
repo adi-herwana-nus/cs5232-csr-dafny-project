@@ -62,7 +62,7 @@ lemma PigeonholePrinciple(arr: seq<int>, arrmin: int, arrmax: int)
 
 lemma CanonicalIndicesLimited(indices: seq<int>, indptr: seq<int>, ncols: int)
     requires ValidCSRIndex(indices, indptr)
-    requires Canonical(indices, indptr)
+    requires Unique(indices, indptr)
     requires forall j :: 0 <= j < |indices| ==> indices[j] < ncols
     requires 0 <= ncols
     decreases |indptr|
@@ -82,7 +82,7 @@ lemma CanonicalIndicesLimited(indices: seq<int>, indptr: seq<int>, ncols: int)
                 assert 1 <= ncols < |indices|;
                 assert forall i :: 0 <= i < |indices| ==> 0 <= indices[i] < ncols;
                 PigeonholePrinciple(indices, 0, ncols);
-                assert exists i,j :: indptr[0] <= i < j < indptr[1] && indices[i] == indices[j]; // Violates Canonical precondition
+                assert exists i,j :: indptr[0] <= i < j < indptr[1] && indices[i] == indices[j]; // Violates Unique precondition
             } 
             else 
             {
