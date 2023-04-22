@@ -4,6 +4,12 @@
 
 include "csr.dfy"
 
+predicate IsRealIndex(matrix: CSRMatrix, j: int)
+    reads matrix
+{
+    0 <= j < |matrix.indices|
+}
+
 // Our target postcondition: if entry exists at row Bi[n] and column Bj[n], then Bp[n] == the index of the entry
 // Otherwise, Bp[n] == -1
 predicate SampleOffsetsTarget(matrix: CSRMatrix, Bi: seq<int>, Bj: seq<int>, Bp: seq<int>)
@@ -12,10 +18,10 @@ predicate SampleOffsetsTarget(matrix: CSRMatrix, Bi: seq<int>, Bj: seq<int>, Bp:
     requires |Bi| == |Bj| == |Bp|
     requires forall n :: 0 <= n < |Bi| ==> -matrix.nrows <= Bi[n] < matrix.nrows
 {
-    (forall n :: 0 <= n < |Bp| ==> 0 <= Bp[n] < |matrix.indices| || Bp[n] == -1) &&
+    (forall n :: 0 <= n < |Bp| ==> IsRealIndex(matrix, Bp[n]) || Bp[n] == -1) &&
     forall n :: 0 <= n < |Bp| ==>
         (if JExists(matrix.indices, matrix.indptr, positiveIndex(Bi[n], matrix.nrows), positiveIndex(Bj[n], matrix.ncols))
-            then 0 <= Bp[n] < |matrix.indices|
+            then IsRealIndex(matrix, Bp[n])
                 && getX(matrix.indices, matrix.indptr, Bp[n]) == positiveIndex(Bi[n], matrix.nrows)
                 && getY(matrix.indices, matrix.indptr, Bp[n]) == positiveIndex(Bj[n], matrix.ncols)
             else Bp[n] == -1)

@@ -1,6 +1,8 @@
 include "csr.dfy"
 include "GetSubmatrix.dfy"
 include "GetIntXInt.dfy"
+include "SetMany.dfy"
+include "SetIntXInt.dfy"
 include "matrix.dfy"
 include "CsrToDense.dfy"
 
@@ -39,6 +41,28 @@ method Main()
     assert 1 in matrix.indices[matrix.indptr[2]..matrix.indptr[3]];
     assert value3 == 5;
 
+
+    var matrix2 := new CSRMatrix([1, 1, 1], [0, 1, 2], [0, 1, 2, 3], 3, 3);
+    // matrix:
+    // [ 1  0  0 ]     [ 1  0  2 ] 
+    // [ 0  1  0 ] ==> [ 0  3  0 ]
+    // [ 0  0  1 ]     [ 3  0  1 ]
+    SetIntXInt(matrix2, 0, 2, 2);
+    assert JExists(matrix2.indices, matrix2.indptr, 0, 2);
+    assert !JExists(matrix2.indices, matrix2.indptr, 2, 0);
+    assert DataAt(matrix2.data, matrix2.indices, matrix2.indptr, 0, 0) == {1};
+    assert DataAt(matrix2.data, matrix2.indices, matrix2.indptr, 0, 2) == {2};
+    assert DataAt(matrix2.data, matrix2.indices, matrix2.indptr, 1, 1) == {1};
+
+    var i, j, x := [1, 2], [1, 0], [3, 3];
+    SetMany(matrix2, i, j, x);
+    assert JExists(matrix2.indices, matrix2.indptr, 0, 2);
+    assert DataAt(matrix2.data, matrix2.indices, matrix2.indptr, 0, 0) == {1};
+    assert DataAt(matrix2.data, matrix2.indices, matrix2.indptr, 0, 2) == {2};
+    assert DataAt(matrix2.data, matrix2.indices, matrix2.indptr, 1, 1) == {3};
+    assert i[1] == 2 && j[1] == 0 && x[1] == 3;
+    assert JExists(matrix2.indices, matrix2.indptr, 2, 0);
+    assert DataAt(matrix2.data, matrix2.indices, matrix2.indptr, 2, 0) == {3};
 
     var m_data := [[1, 0, 0], [0, 0, 0], [0, 0, 0]];
     var m_rows := 3;

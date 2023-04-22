@@ -402,6 +402,8 @@ class CSRMatrix {
         ValidCSRIndex(this.indices, this.indptr) &&
         Unique(this.indices, this.indptr) &&
         RowColValid() &&
+        // Putting the existence condition in the predicate minimizes the need for repetitive assertions elsewhere,
+        // even if it can be proven using the above predicates.
         forall x, y :: 0 <= x < |indptr| - 1 && 0 <= y < ncols ==>
             (JExists(indices, indptr, x, y) <==> y in indices[indptr[x]..indptr[x+1]])
     }

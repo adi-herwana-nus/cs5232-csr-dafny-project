@@ -6,7 +6,7 @@
 
 include "csr.dfy"
 
-// Our primary goal: for all valid x,y coordinates in the new matrix we prove the following:
+// Our target precondition: for all valid x,y coordinates in the new matrix we prove the following:
 // 1. The new matrix stores a value for (x, y) if and only if the old matrix stores a value for (x+ir0, y+ic0);
 // 2. If the new matrix stores a value for (x, y), then it is equal to the value of the old matrix at (x+ir0, y+ic0).
 predicate GetSubmatrixTarget(old_matrix: CSRMatrix, ir0: int, ir1: int, ic0: int, ic1: int, new_data: seq<int>, new_indices: seq<int>, new_indptr: seq<int>)
