@@ -8,14 +8,18 @@ Wei Letong (A0248544X)
 # Instructions
 
 The main project directory contains all implementations and proofs mentioned as part of the report, 
-separated into the following files for greater clarity:
+separated into the following files to enhance performance and readability:
 
 - `csr.dfy`          - CSR Matrix class definition and common lemmas
-- `GetSubmatrix.dfy` - implementation and verification of get_csr_submatrix()
 - `GetIntXInt.dfy`   - implementation and verification of _get_intXint()
+- `GetSubmatrix.dfy` - implementation and verification of get_csr_submatrix()
 - `matrix.dfy`       - Dense Matrix predicate definition
-- `SetIntXInt.dfy`   - 
-- `SetMany.dfy`      - 
+- `AddDense.dfy`     - implementation and verification of _add_dense()
+- `CsrToDense.dfy`   - implementation and verification of csr_todense()
+- `SetIntXInt.dfy`   - implementation and verification of _set_intXint()
+- `SetMany.dfy`      - implementation and verification of _set_many()
+- `SampleOffsets.dfy`- implementation and verification of csr_sample_offsets()
+- `InsertMany.dfy`   - (incomplete) implementation and verification of _insert_many()
 
 - `main.dfy`         - main class containing sample test cases for above library function verifications
 
