@@ -161,8 +161,8 @@ method GetSubmatrix(old_matrix: CSRMatrix, ir0: int, ir1: int, ic0: int, ic1: in
                     assert getY(old_matrix.indices, old_matrix.indptr, j2) == y + ic0;
 
                     assert old_matrix.data[j2] == new_data[j1];
-                    JUniqueInCanonicalMatrix(new_indices, new_indptr, i, y, j1);
-                    JUniqueInCanonicalMatrix(old_matrix.indices, old_matrix.indptr, i+ir0, y+ic0, j2);
+                    JUniqueInUniqueMatrix(new_indices, new_indptr, i, y, j1);
+                    JUniqueInUniqueMatrix(old_matrix.indices, old_matrix.indptr, i+ir0, y+ic0, j2);
                 }
             }
             JExistenceConditionForGivenXY(old_matrix.indices, old_matrix.indptr, old_matrix.ncols, i+ir0, y+ic0);

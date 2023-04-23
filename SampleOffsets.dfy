@@ -159,7 +159,7 @@ method SampleOffsets(matrix: CSRMatrix, Bi: seq<int>, Bj: seq<int>) returns (Bp:
             JExistenceConditionForGivenX(matrix.indices, matrix.indptr, matrix.ncols, i);
             if offset >= 0
             {
-                JUniqueInCanonicalMatrix(matrix.indices, matrix.indptr, i, j, offset);
+                JUniqueInUniqueMatrix(matrix.indices, matrix.indptr, i, j, offset);
                 assert JExists(matrix.indices, matrix.indptr, i, j);
                 assert j in matrix.indices[row_start..jj];
             }

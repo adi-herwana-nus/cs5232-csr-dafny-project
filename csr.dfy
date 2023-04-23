@@ -130,7 +130,7 @@ function DataAt(data: seq<int>, indices: seq<int>, indptr: seq<int>, x: int, y: 
     set j | j in getJs(indices, indptr, x, y) :: data[j]
 }
 
-lemma XYUniqueInCanonicalMatrix(indices: seq<int>, indptr: seq<int>, j1: int, j2: int)
+lemma XYUniqueInUniqueMatrix(indices: seq<int>, indptr: seq<int>, j1: int, j2: int)
     requires ValidCSRIndex(indices, indptr)
     requires Unique(indices, indptr)
     requires 0 <= j1 < |indices|
@@ -161,7 +161,7 @@ lemma XYUniqueInCanonicalMatrix(indices: seq<int>, indptr: seq<int>, j1: int, j2
     }
 }
 
-lemma JUniqueInCanonicalMatrix(indices: seq<int>, indptr: seq<int>, x: int, y: int, j: int)
+lemma JUniqueInUniqueMatrix(indices: seq<int>, indptr: seq<int>, x: int, y: int, j: int)
     requires ValidCSRIndex(indices, indptr)
     requires Unique(indices, indptr)
     requires 0 <= j < |indices|
@@ -177,12 +177,12 @@ lemma JUniqueInCanonicalMatrix(indices: seq<int>, indptr: seq<int>, x: int, y: i
         forall j2 | j2 in jset && j2 != j
             ensures false
         {
-            XYUniqueInCanonicalMatrix(indices, indptr, j, j2);
+            XYUniqueInUniqueMatrix(indices, indptr, j, j2);
         }
     }
 }
 
-lemma DataUniqueInCanonicalMatrix(data: seq<int>, indices: seq<int>, indptr: seq<int>, x: int, y: int, j: int)
+lemma DataUniqueInUniqueMatrix(data: seq<int>, indices: seq<int>, indptr: seq<int>, x: int, y: int, j: int)
     requires ValidCSRIndex(indices, indptr)
     requires Unique(indices, indptr)
     requires 0 <= j < |indices|
@@ -192,7 +192,7 @@ lemma DataUniqueInCanonicalMatrix(data: seq<int>, indices: seq<int>, indptr: seq
 
     ensures DataAt(data, indices, indptr, x, y) == {data[j]}
 {
-    JUniqueInCanonicalMatrix(indices, indptr, x, y, j);
+    JUniqueInUniqueMatrix(indices, indptr, x, y, j);
 }
 
 lemma JExistenceConditionForGivenXY(indices: seq<int>, indptr: seq<int>, ncols: int, x: int, y: int)
@@ -208,7 +208,7 @@ lemma JExistenceConditionForGivenXY(indices: seq<int>, indptr: seq<int>, ncols: 
         {
             JBoundsDetermineX(indices, indptr, j, x);
             assert getX(indices, indptr, j) == x;
-            JUniqueInCanonicalMatrix(indices, indptr, x, y, j);
+            JUniqueInUniqueMatrix(indices, indptr, x, y, j);
         } 
     }
     if JExists(indices, indptr, x, y)
@@ -240,7 +240,7 @@ lemma JExistenceConditionForGivenX(indices: seq<int>, indptr: seq<int>, ncols: i
             {
                 JBoundsDetermineX(indices, indptr, j, x);
                 assert getX(indices, indptr, j) == x;
-                JUniqueInCanonicalMatrix(indices, indptr, x, y, j);
+                JUniqueInUniqueMatrix(indices, indptr, x, y, j);
             } 
         }
         if JExists(indices, indptr, x, y)
@@ -354,11 +354,11 @@ lemma AddingRowsPreservesExistingData(data1: seq<int>, indices1: seq<int>, indpt
                 ensures DataAt(data1, indices1, indptr1, x, y) == DataAt(data2, indices2, indptr2, x, y)
             {
                 AddingRowsPreservesExistingPositions(indices1, indptr1, indices2, indptr2);
-                DataUniqueInCanonicalMatrix(data1, indices1, indptr1, x, y, j);
+                DataUniqueInUniqueMatrix(data1, indices1, indptr1, x, y, j);
                 assert DataAt(data1, indices1, indptr1, x, y) == {data1[j]};
                 assert getX(indices2, indptr2, j) == x;
                 assert getY(indices2, indptr2, j) == y;
-                JUniqueInCanonicalMatrix(indices2, indptr2, x, y, j);
+                JUniqueInUniqueMatrix(indices2, indptr2, x, y, j);
                 assert DataAt(data2, indices2, indptr2, x, y) == {data2[j]};
             }
         }

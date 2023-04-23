@@ -229,7 +229,7 @@ method SetMany(matrix: CSRMatrix, i: seq<int>, j: seq<int>, x: seq<int>)
         {
             assert getX(updated_indices, updated_indptr, offsets_mask[k1]) == i_mask[k1];
             assert getY(updated_indices, updated_indptr, offsets_mask[k1]) == j_mask[k1];
-            DataUniqueInCanonicalMatrix(updated_data, updated_indices, updated_indptr, i_mask[k1], j_mask[k1], offsets_mask[k1]);
+            DataUniqueInUniqueMatrix(updated_data, updated_indices, updated_indptr, i_mask[k1], j_mask[k1], offsets_mask[k1]);
             if k1 == k_update
             {
                 assert DataAt(updated_data, updated_indices, updated_indptr, i_mask[k_update], j_mask[k_update]) == {x_mask[k_update]};
