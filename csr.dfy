@@ -15,7 +15,7 @@ predicate Unique(indices: seq<int>, indptr: seq<int>)
     forall row :: 0 <= row < |indptr|-1 ==> forall i,j :: indptr[row] <= i < j < indptr[row+1] ==> indices[i] != indices[j]
 }
 
-predicate Canonical(indices: seq<int>, indptr: seq<int>)
+predicate method Canonical(indices: seq<int>, indptr: seq<int>)
     requires ValidCSRIndex(indices, indptr)
 {
     forall row :: 0 <= row < |indptr|-1 ==> forall i,j :: indptr[row] <= i < j < indptr[row+1] ==> indices[i] < indices[j]

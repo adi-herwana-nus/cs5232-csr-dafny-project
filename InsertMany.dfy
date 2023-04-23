@@ -87,6 +87,30 @@ lemma SeqSetEqualityImpliesEquivalence(s1: seq<int>, s2: seq<int>, x: int)
     }
 }
 
+lemma MergedSeqIsUnique(s: seq<int>, start: int, sep: int, end: int)
+    requires 0 <= start <= sep <= end <= |s|
+    requires forall j1, j2 :: start <= j1 < j2 < sep ==> s[j1] != s[j2]
+    requires forall j1, j2 :: sep <= j1 < j2 < end ==> s[j1] != s[j2]
+    requires forall y1 :: y1 in s[start..sep] ==> y1 !in s[sep..end]
+    ensures forall j1, j2 :: start <= j1 < j2 < end ==> s[j1] != s[j2]
+{
+    forall j1, j2 | start <= j1 < j2 < end && s[j1] == s[j2]
+        ensures false
+    {
+        if start <= j1 < sep
+        {
+            assert sep <= j2 < end;
+            assert s[j1] in s[start..sep];
+            assert s[j1] !in s[sep..end];
+            assert s[j2] !in s[sep..end];
+        }
+        else
+        {
+            assert sep <= j1 < j2 < end;
+        }
+    }
+}
+
 function NpDiff(a: seq<int>): seq<int>
     requires |a| >= 1
 {
@@ -136,7 +160,7 @@ method InsertMany(matrix: CSRMatrix, i: seq<int>, j: seq<int>, x: seq<int>)
 
     // For our use case (proving _set_many), we can assume that the CSR matrix and input array have no places in common.
     requires forall x, y :: 0 <= x < matrix.nrows && 0 <= y < matrix.ncols ==>
-        (XYInInput(i, j, x, y) <==> !JExists(matrix.indices, matrix.indptr, x, y))
+        (XYInInput(i, j, x, y) ==> !JExists(matrix.indices, matrix.indptr, x, y))
     ensures matrix.Valid()
 {
     var indices_parts: seq<seq<int>> := [];
@@ -171,13 +195,9 @@ method InsertMany(matrix: CSRMatrix, i: seq<int>, j: seq<int>, x: seq<int>)
     // Variable representing the value of np.cumsum(nnzs, out=nnzs), which will become the indptr of the resulting matrix.
     var new_indptr := [0];
 
-    // The loop inserts the new indices before the old indices.
-    var new_indptr_sep: seq<int> := [];
-
     // Variables representing the value of np.concatenate((indices|data)_parts)
     var new_indices: seq<int> := [];
     var new_data: seq<int> := [];
-    var loop_break_indptr: seq<int> := [0];
 
     var c := 0;
     while c < |ui|
@@ -188,19 +208,18 @@ method InsertMany(matrix: CSRMatrix, i: seq<int>, j: seq<int>, x: seq<int>)
 
         invariant new_indices == NpConcatenate(indices_parts)
         invariant new_data == NpConcatenate(data_parts)
-        invariant |new_indptr| == prev + 1 == |new_indptr_sep| + 1
+        invariant |new_indptr| == prev + 1
         invariant new_indptr[0] == 0
         invariant forall k :: 0 <= k < |new_indptr| ==> 0 <= new_indptr[k] <= |new_indices|
-        invariant forall k :: 0 <= k < |new_indptr|-1 ==> new_indptr[k] <= new_indptr_sep[k] <= |new_indices|
         invariant forall k, l :: 0 <= k < l < |new_indptr| ==> new_indptr[k] <= new_indptr[l]
         invariant forall k :: 0 <= k < |new_indices| ==> 0 <= new_indices[k] < matrix.ncols
-
-        invariant forall x :: 0 <= x < prev ==> new_indptr[x] <= new_indptr_sep[x] <= |new_indices|
         
-        invariant forall x, y :: 0 <= x < prev && 0 <= y < matrix.ncols ==> 
-            (XYInInput(i, j, x, y) <==> y in new_indices[new_indptr[x]..new_indptr_sep[x]])
         invariant c == 0 || forall y :: 0 <= y < matrix.ncols ==> 
             (XYInInput(i, j, prev, y) <==> y in new_indices[new_indptr[prev]..])
+
+        invariant ValidCSRIndex(new_indices[..new_indptr[prev]], new_indptr)
+        invariant forall j1, j2 :: new_indptr[prev] <= j1 < j2 < |new_indices| ==> new_indices[j1] != new_indices[j2]
+        invariant Unique(new_indices[..new_indptr[prev]], new_indptr)
     {
         var ii, js, je := ui[c], ui_indptr[c], ui_indptr[c+1];
         var prev_indices := new_indices;
@@ -209,63 +228,18 @@ method InsertMany(matrix: CSRMatrix, i: seq<int>, j: seq<int>, x: seq<int>)
         var stop := matrix.indptr[ii];
         indices_parts := indices_parts + [matrix.indices[start..stop]];
         new_indices := new_indices + matrix.indices[start..stop];
+        assert new_indices == prev_indices + matrix.indices[start..stop];
         data_parts := data_parts + [matrix.data[start..stop]];
         new_data := new_data + matrix.data[start..stop];
-
-        assert forall x, y :: 0 <= x < prev && 0 <= y < matrix.ncols ==> 
-            (XYInInput(i, j, x, y) <==> y in prev_indices[new_indptr[x]..new_indptr_sep[x]]);
-        forall x, y | 0 <= x < prev && 0 <= y < matrix.ncols
-            ensures XYInInput(i, j, x, y) <==> y in new_indices[new_indptr[x]..new_indptr_sep[x]]
-        {
-            ShiftedSubsequenceEquality(new_indices, new_indptr[x], new_indptr_sep[x], prev_indices, 0);
-        }
-        assert forall x, y :: 0 <= x < prev && 0 <= y < matrix.ncols ==> 
-            (XYInInput(i, j, x, y) <==> y in new_indices[new_indptr[x]..new_indptr_sep[x]]);
 
         // Populate values of new_indptr. Note that existence of c implies at least one value must be added.
         // The first row must be special cased, since it may contain indices inserted from the previous loop iteration
         var old_new_indptr := new_indptr;
-        var old_new_indptr_sep := new_indptr_sep;
-        new_indptr := new_indptr + [|prev_indices|]; // Added at index (prev + 1)
-        new_indptr_sep := new_indptr_sep + [|prev_indices|]; // Added at index (prev)
-
-        var k := prev;
-        while k < ii
-            invariant prev <= k <= ii
-            invariant |new_indptr| == k+2 == |new_indptr_sep| + 1
-            invariant new_indptr[0] == 0
-            invariant new_indptr[k+1] == matrix.indptr[k] + |prev_indices| - matrix.indptr[prev]
-            invariant forall l :: prev < l <= k ==> new_indptr[l] == |prev_indices| + matrix.indptr[l] - matrix.indptr[prev]
-            invariant forall l :: 0 <= l < |new_indptr| ==> 0 <= new_indptr[l] <= |new_indices|
-            invariant forall l :: 0 <= l < |new_indptr|-1 ==> new_indptr[l] <= new_indptr_sep[l] <= |new_indices|
-            invariant forall l :: 0 <= l < |old_new_indptr| ==> new_indptr[l] == old_new_indptr[l];
-            invariant forall l :: 0 <= l < |old_new_indptr_sep| ==> new_indptr_sep[l] == old_new_indptr_sep[l];
-            invariant forall l, m :: 0 <= l < m < |new_indptr| ==> new_indptr[l] <= new_indptr[m]
-
-            invariant new_indptr[prev] <= |prev_indices|
-            invariant new_indptr_sep[prev] == |prev_indices|
-            invariant forall l :: prev < l <= k ==> new_indptr[l] == new_indptr_sep[l]
-
-            invariant (c == 0) || forall y :: 0 <= y < matrix.ncols ==> (XYInInput(i, j, prev, y) <==> y in prev_indices[new_indptr[prev]..])
-        {
-            // Modify last entry and add new entry
-            new_indptr := new_indptr[k+1 := new_indptr[k+1] + matrix.indptr[k+1] - matrix.indptr[k]];
-            new_indptr := new_indptr + [new_indptr[k+1]];
-            new_indptr_sep := new_indptr_sep + [new_indptr_sep[k] + matrix.indptr[k+1] - matrix.indptr[k]];
-            if k == prev
-            {
-                assert new_indptr[k+1] == new_indptr_sep[k+1];
-            }
-            else
-            {
-                assert new_indptr[k+1] == new_indptr_sep[k+1];
-            }
-            k := k + 1;
-        }
 
         // handle duplicate j: keep last setting
         var uj, uj_indptr := NumpyUniqueReturnIndex(j[js..je]);
         indices_parts := indices_parts + [seq(|uj_indptr|, k requires 0 <= k < |uj_indptr| => j[js + uj_indptr[k]])];
+        assert new_indices == prev_indices + matrix.indices[start..stop];
         new_indices := new_indices + seq(|uj_indptr|, k requires 0 <= k < |uj_indptr| => j[js + uj_indptr[k]]);
         data_parts := data_parts + [seq(|uj_indptr|, k requires 0 <= k < |uj_indptr| => x[js + uj_indptr[k]])];
         new_data := new_data + seq(|uj_indptr|, k requires 0 <= k < |uj_indptr| => x[js + uj_indptr[k]]);
@@ -273,6 +247,7 @@ method InsertMany(matrix: CSRMatrix, i: seq<int>, j: seq<int>, x: seq<int>)
 
         // add new_nnzs[c] to the last element to represent the added matrix entries
         var added_indices := seq(|uj_indptr|, k requires 0 <= k < |uj_indptr| => j[js + uj_indptr[k]]);
+        assert new_indices == prev_indices + matrix.indices[start..stop] + added_indices;
         assert added_indices == uj;
 
         assert i[js] == ii;
@@ -295,79 +270,72 @@ method InsertMany(matrix: CSRMatrix, i: seq<int>, j: seq<int>, x: seq<int>)
 
         if prev < ii
         {
+            var k := prev+1;
+            while k <= ii
+                invariant prev+1 <= k <= ii+1
+                invariant |new_indptr| == k
+                invariant new_indptr[0] == 0
+                invariant forall l :: prev+1 <= l < k ==> new_indptr[l] == |prev_indices| + matrix.indptr[l] - matrix.indptr[prev]
+                invariant forall l :: 0 <= l < |new_indptr| ==> 0 <= new_indptr[l] <= |new_indices|
+                invariant forall l :: 0 <= l < |old_new_indptr| ==> new_indptr[l] == old_new_indptr[l];
+                invariant forall l, m :: 0 <= l < m < |new_indptr| ==> new_indptr[l] <= new_indptr[m]
+            {
+                new_indptr := new_indptr + [|prev_indices| + matrix.indptr[k] - matrix.indptr[prev]];
+                k := k + 1;
+            }
+
             assert new_indices == prev_indices + matrix.indices[start..stop] + added_indices;
-
-            forall x, y | prev <= x < ii && 0 <= y < matrix.ncols
-                ensures y in new_indices[new_indptr_sep[x]..new_indptr[x+1]] <==> y in matrix.indices[matrix.indptr[x]..matrix.indptr[x+1]]
+    
+            assert new_indices[|prev_indices|..new_indptr[prev+1]] == matrix.indices[matrix.indptr[prev]..matrix.indptr[prev+1]] by
             {
-                var old_slice := new_indices[new_indptr_sep[x]..new_indptr[x+1]];
-                var matrix_slice := matrix.indices[matrix.indptr[x]..matrix.indptr[x+1]];
-                if x == prev
-                {
-                    assert new_indptr[prev+1] == |prev_indices| + matrix.indptr[prev+1] - matrix.indptr[prev];
-                    ShiftedSubsequenceEquality(matrix.indices, matrix.indptr[prev], matrix.indptr[prev+1], new_indices, |prev_indices| - matrix.indptr[prev]);
-                    var temp_slice := new_indices[|prev_indices|..new_indptr[prev+1]];
-                    assert new_indices[|prev_indices|..new_indptr[prev+1]] == matrix.indices[matrix.indptr[x]..matrix.indptr[x+1]];
-                    assert new_indptr_sep[prev] == |prev_indices|;
-                    assert temp_slice == old_slice;
-                }
+                assert new_indptr[prev+1] == |prev_indices| + matrix.indptr[prev+1] - matrix.indptr[prev];
+                ShiftedSubsequenceEquality(matrix.indices, matrix.indptr[prev], matrix.indptr[prev+1], new_indices, |prev_indices| - matrix.indptr[prev]);
+            }
 
-                if prev < x < ii
-                {
-                    ShiftedSubsequenceEquality(matrix.indices, matrix.indptr[x], matrix.indptr[x+1], new_indices, |prev_indices| - matrix.indptr[prev]);
-                    assert new_indices[new_indptr[x]..new_indptr[x+1]] == matrix_slice;
-                    var slice := new_indices[new_indptr[x]..new_indptr[x+1]];
-                    assert new_indptr_sep[x] == new_indptr[x];
-                    assert new_indices[new_indptr_sep[x]..new_indptr[x+1]] == slice;
-                }
-            }
-            forall x, y | 0 <= x < ii && 0 <= y < matrix.ncols
-                ensures XYInInput(i, j, x, y) <==> y in new_indices[new_indptr[x]..new_indptr_sep[x]]
+            forall y1 | 0 <= y1 < matrix.ncols && y1 in new_indices[new_indptr[prev]..|prev_indices|]
+                ensures y1 !in new_indices[|prev_indices|..new_indptr[prev+1]]
             {
-                if x < prev
-                {
-                    // This is a repetition of lines 214-222, but including the former speeds up verification
-                    assert XYInInput(i, j, x, y) <==> y in prev_indices[old_new_indptr[x]..old_new_indptr_sep[x]];
-                    ShiftedSubsequenceEquality(new_indices, new_indptr[x], new_indptr_sep[x], prev_indices, 0);
-                }
-                if x == prev
-                {
-                    assert new_indices[new_indptr[prev]..new_indptr_sep[prev]] == prev_indices[new_indptr[prev]..new_indptr_sep[prev]];
-                    assert XYInInput(i, j, x, y) <==> y in new_indices[new_indptr[x]..new_indptr_sep[x]];
-                }
-                if prev < x < ii
-                {
-                    assert x !in ui;
-                    SeqSetEqualityImpliesEquivalence(ui, i, x);
-                    assert x !in i;
-                    assert !XYInInput(i, j, x, y);
-                    assert new_indptr_sep[x] == new_indptr[x];
-                    assert y !in new_indices[new_indptr[x]..new_indptr_sep[x]];
-                }
+                assert y1 in prev_indices[new_indptr[prev]..|prev_indices|];
+                assert XYInInput(i, j, prev, y1);
             }
-        } 
+        
+            forall j1, j2 | new_indptr[prev] <= j1 < j2 < |prev_indices| 
+                ensures new_indices[j1] != new_indices[j2]
+            {
+                assert new_indices[j1] == prev_indices[j1];
+                assert new_indices[j2] == prev_indices[j2];
+                assert prev_indices[j1] != prev_indices[j2];
+            }
+            forall j1, j2 | |prev_indices| <= j1 < j2 < new_indptr[prev+1]
+                ensures new_indices[j1] != new_indices[j2]
+            {
+                assert new_indices[j1] == matrix.indices[j1 - |prev_indices| + matrix.indptr[prev]];
+                assert new_indices[j2] == matrix.indices[j2 - |prev_indices| + matrix.indptr[prev]];
+                assert new_indices[j1] != new_indices[j2];
+            }
+            MergedSeqIsUnique(new_indices, new_indptr[prev], |prev_indices|, new_indptr[prev+1]);
+        }
         else
         {
             assert c == 0;
             assert new_indices == added_indices;
         }
         assert new_indptr[ii] == |prev_indices| + matrix.indptr[ii] - matrix.indptr[prev];
+        assert added_indices == new_indices[new_indptr[ii]..];
         forall y | 0 <= y < matrix.ncols
             ensures XYInInput(i, j, ii, y) <==> y in new_indices[new_indptr[ii]..]
         {
             assert (XYInInput(i, j, ii, y) <==> y in j[js..je]);
             SeqSetEqualityImpliesEquivalence(j[js..je], uj, y);
             assert (y in j[js..je] <==> y in uj);
-            assert added_indices == new_indices[new_indptr[ii]..];
         }
         forall y | y in new_indices[new_indptr[ii]..] && !(0 <= y < matrix.ncols)
             ensures false
         {}
-        assert forall k :: |prev_indices| <= k < |new_indices| ==> 0 <= new_indices[k] < matrix.ncols;
-
-        // Discard the last entry, since it'll be overridden anyway
-        new_indptr := new_indptr[..|new_indptr|-1];
-        new_indptr_sep := new_indptr_sep[..|new_indptr_sep|-1];
+        forall j1, j2 | new_indptr[ii] <= j1 < j2 < |new_indices|
+            ensures new_indices[j1] != new_indices[j2]
+        {}
+        //assert forall j1, j2 :: new_indptr[ii] <= j1 < |new_indices| ==> new_indices[j1] != new_indices[j2];
 
         prev := ii;
 
@@ -384,4 +352,3 @@ method InsertMany(matrix: CSRMatrix, i: seq<int>, j: seq<int>, x: seq<int>)
     // update attributes
     
 }
-
